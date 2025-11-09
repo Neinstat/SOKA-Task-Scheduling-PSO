@@ -138,11 +138,14 @@ def write_results_to_csv(results_list: list):
     
     # Format datetime agar lebih mudah dibaca di CSV
     formatted_results = []
+    min_start = min(item['start_time'] for item in results_list)
     for r in results_list:
         new_r = r.copy()
-        new_r['start_time'] = r['start_time'].isoformat()
-        new_r['finish_time'] = r['finish_time'].isoformat()
+        new_r['start_time'] = (r['start_time'] - min_start).total_seconds()
+        new_r['finish_time'] = (r['finish_time'] - min_start).total_seconds()
         formatted_results.append(new_r)
+
+    formatted_results.sort(key=lambda item: item['start_time'])
 
     try:
         with open(RESULTS_FILE, 'w', newline='', encoding='utf-8') as f:
@@ -153,15 +156,11 @@ def write_results_to_csv(results_list: list):
     except IOError as e:
         print(f"Error menulis ke CSV {RESULTS_FILE}: {e}", file=sys.stderr)
 
-def calculate_and_print_metrics(results_file: str, vms: list[VM], total_schedule_time: float):
-    """Membaca file CSV hasil dan menghitung metrik kinerja."""
+def calculate_and_print_metrics(results_list: list, vms: list[VM], total_schedule_time: float):
     try:
-        df = pd.read_csv(results_file)
-    except FileNotFoundError:
-        print(f"Error: File hasil {results_file} tidak ditemukan untuk kalkulasi metrik.", file=sys.stderr)
-        return
+        df = pd.DataFrame(results_list)
     except pd.errors.EmptyDataError:
-        print("Error: File hasil kosong, tidak ada metrik untuk dihitung.", file=sys.stderr)
+        print("Error: Hasil kosong, tidak ada metrik untuk dihitung.", file=sys.stderr)
         return
 
     # Konversi kolom waktu
@@ -209,18 +208,16 @@ def calculate_and_print_metrics(results_file: str, vms: list[VM], total_schedule
     resource_utilization = total_cpu_time / total_available_cpu_time if total_available_cpu_time > 0 else 0
 
     # Tampilkan Metrik
-    print("\n--- Metrik Kinerja Penjadwalan ---")
-    print(f"Total Tugas Selesai      : {num_tasks}")
-    print(f"Makespan (Waktu Total)   : {makespan:.4f} detik")
-    print(f"Throughput               : {throughput:.4f} tugas/detik")
-    print("\n--- Waktu (Tugas yang Sukses) ---")
-    print(f"Total CPU Time           : {total_cpu_time:.4f} detik")
-    print(f"Total Wait Time          : {total_wait_time:.4f} detik")
-    print(f"Average Start Time (rel) : {avg_start_time:.4f} detik")
-    print(f"Average Execution Time   : {avg_exec_time:.4f} detik")
-    print(f"Average Finish Time (rel): {avg_finish_time:.4f} detik")
-    print("\n--- Keseimbangan & Utilisasi ---")
-    print(f"Imbalance Degree         : {imbalance_degree:.4f}")
+    print("\n--- Hasil ---")
+    print(f"Total Tugas Selesai       : {num_tasks}")
+    print(f"Makespan (Waktu Total)    : {makespan:.4f} detik")
+    print(f"Throughput                : {throughput:.4f} tugas/detik")
+    print(f"Total CPU Time            : {total_cpu_time:.4f} detik")
+    print(f"Total Wait Time           : {total_wait_time:.4f} detik")
+    print(f"Average Start Time (rel)  : {avg_start_time:.4f} detik")
+    print(f"Average Execution Time    : {avg_exec_time:.4f} detik")
+    print(f"Average Finish Time (rel) : {avg_finish_time:.4f} detik")
+    print(f"Imbalance Degree          : {imbalance_degree:.4f}")
     print(f"Resource Utilization (CPU): {resource_utilization:.4%}")
 
 # --- 6. Fungsi Main ---
@@ -281,7 +278,7 @@ async def main():
     
     # 5. Simpan Hasil dan Hitung Metrik
     write_results_to_csv(results_list)
-    calculate_and_print_metrics(RESULTS_FILE, vms, total_schedule_time)
+    calculate_and_print_metrics(results_list, vms, total_schedule_time)
 
 if __name__ == "__main__":
     asyncio.run(main())

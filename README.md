@@ -69,8 +69,8 @@ uv run scheduler.py
 
 `result.csv`
 
-![result csv](./images/aglow-spin.gif)
+![result csv](./images/result-csv.png)
 
 `console`
 
-![console](./images/rosela-spin.gif)
+![console](./images/console.png)
