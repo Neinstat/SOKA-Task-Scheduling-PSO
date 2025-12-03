@@ -1,6 +1,6 @@
 # Pengujian Algoritma Task Scheduler pada Server IT
 
-Repository ini berisi implementasi simulasi **Task Scheduling** pada lingkungan Komputasi Awan (Cloud Computing). Proyek ini dikerjakan untuk memenuhi tugas mata kuliah **Strategi Optimasi Komputasi Awan (SOKA)**.
+Repository ini berisi implementasi simulasi **Task Scheduling** pada lingkungan Komputasi Awan (Cloud Computing). Proyek ini dikerjakan untuk tugas mata kuliah **Strategi Optimasi Komputasi Awan (SOKA)**.
 
 Program ini mensimulasikan distribusi tugas (tasks) ke beberapa Virtual Machine (VM) menggunakan berbagai algoritma penjadwalan untuk membandingkan performa metrik seperti **Makespan**, **Throughput**, **Imbalance Degree**, dan **Resource Utilization**.
 
@@ -11,31 +11,31 @@ Program ini mensimulasikan distribusi tugas (tasks) ke beberapa Virtual Machine 
 | No | Nama | NRP |
 |----|------|-----|
 | 1. | Muhammad Andrean Rizq P | 5027231052 |
-| 2. | Fikri | ...026 |
-| 3. | Malvin | ...069 |
-| 4. | Fadhil | ...069 |
-| 5. | Dani Wahyu | ...069 |
+| 2. | Fikri Aulia As Sa'adi | 5027231026 |
+| 3. | Malvin Putra | ...069 |
+| 4. | Fadhil Saifullah | ...069 |
+| 5. | Dani Wahyu Anak Ary | ...069 |
 
 *(Catatan: Silakan sesuaikan NRP jika ada kesalahan penulisan)*
 
 ---
 
-## 🚀 Fitur & Algoritma
+##  Fitur & Algoritma
 
 Proyek ini mengimplementasikan dan membandingkan 4 algoritma penjadwalan:
 
-1.  **Particle Swarm Optimization (PSO)** 🕊️
+1.  **Particle Swarm Optimization (PSO)** 
     *   Algoritma utama yang dioptimalkan. Menggunakan prinsip kecerdasan kawanan (swarm intelligence) untuk mencari solusi global optimum dalam pembagian tugas.
-2.  **Stochastic Hill Climbing (SHC)** ⛰️
+2.  **Stochastic Hill Climbing (SHC)** 
     *   Algoritma pencarian lokal yang secara acak memindahkan tugas ke VM lain untuk mencari solusi yang lebih baik (makespan lebih kecil).
-3.  **Round Robin (RR)** 🔄
+3.  **Round Robin (RR)** 
     *   Algoritma statis yang membagi tugas secara bergiliran (siklis) ke setiap VM tanpa mempedulikan beban kerja saat itu.
-4.  **First-Come First-Served (FCFS)** ⏱️
+4.  **First-Come First-Served (FCFS)** 
     *   Algoritma greedy yang menugaskan tugas yang datang pertama ke VM yang paling cepat tersedia (memiliki estimasi waktu selesai tercepat).
 
 ---
 
-## 📂 Dataset
+##  Dataset
 
 Pengujian dilakukan menggunakan 3 jenis dataset dengan karakteristik beban kerja (CPU Load) yang berbeda:
 
@@ -45,7 +45,7 @@ Pengujian dilakukan menggunakan 3 jenis dataset dengan karakteristik beban kerja
 
 ---
 
-## 🛠️ Instalasi & Persiapan
+##  Instalasi & Persiapan
 
 Sebelum menjalankan program, pastikan Anda telah menyiapkan lingkungan berikut:
 
@@ -98,7 +98,7 @@ VM_PORT=5000
 
 ---
 
-## 💻 Cara Penggunaan
+##  Cara Penggunaan
 
 Terdapat file scheduler terpisah untuk setiap algoritma agar memudahkan pengujian.
 
