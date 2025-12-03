@@ -1,0 +1,11 @@
+--- Hasil Algoritma: SHC ---
+Dataset                   : dataset_random_stratified.txt
+Total Tugas Selesai       : 250
+Makespan                  : 79.1385 detik
+Throughput                : 3.1590 tugas/detik
+Total CPU Time            : 207.3721 detik
+Total Wait Time           : 1681.4692 detik
+Average Exec Time         : 0.8295 detik
+Imbalance Degree          : 1.0154
+Resource Utilization      : 65.5092%
+----------------------------------------

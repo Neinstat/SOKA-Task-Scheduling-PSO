@@ -3,6 +3,7 @@ import asyncio
 import time
 import pandas as pd
 import os
+import csv 
 from dotenv import load_dotenv
 from collections import namedtuple
 
@@ -17,14 +18,14 @@ load_dotenv()
 
 # --- MODIFIKASI 2: nama file output ---
 # File hasil simulasi nanti disimpan ke CSV dengan nama ini
-RESULTS_FILE = "pso_result.csv"
+RESULTS_FILE = "pso_results.csv" # 
 # -------------------------------------------
 
 # File dataset berisi daftar tugas
 TASK_FILE = "dataset.txt"
 
-# Jumlah iterasi PSO (disamakan dengan SHC agar konsisten)
-SHC_ITERATIONS = 1000
+# Jumlah iterasi PSO (disamakan dengan SHC/contoh sebelumnya agar konsisten)
+PSO_ITERATIONS = 1000
 
 # Timeout HTTP lebih panjang karena beban komputasi tiap task besar
 HTTP_TIMEOUT = 120.0
@@ -185,14 +186,19 @@ async def execute_task(client: httpx.AsyncClient, task: Task, vm: VM, vm_port: s
         exec_time = time.time() - start_time
         data = response.json()  # Response dari VM worker
         
+        # Kita butuh 'worker_time' murni untuk perhitungan batch scheduling
+        # Pastikan ambil dari response JSON dan konversi ke float
+        worker_time_raw = data.get('execution_time', '0.0s').replace('s','')
+        
         return {
             "task_id": task_id,
+            "index": task.index, # Tambahan index asli untuk sorting
             "task_name": task_name,
             "vm_name": vm_name,
             "vm_ip": vm.ip,
             "status": "success",
             "execution_time": exec_time,  
-            "worker_time": float(data.get('execution_time', '0.0s').replace('s','')),
+            "worker_time": float(worker_time_raw),
             "message": data.get('message', '')
         }
         
@@ -201,8 +207,8 @@ async def execute_task(client: httpx.AsyncClient, task: Task, vm: VM, vm_port: s
         exec_time = time.time() - start_time
         print(f"Error TIMEOUT pada {task_name} di {vm_name}")
         return {
-            "task_id": task_id, "task_name": task_name, "vm_name": vm_name, "vm_ip": vm.ip,
-            "status": "timeout", "execution_time": exec_time, "worker_time": None,
+            "task_id": task_id, "index": task.index, "task_name": task_name, "vm_name": vm_name, "vm_ip": vm.ip,
+            "status": "timeout", "execution_time": exec_time, "worker_time": 0.0,
             "message": f"ReadTimeout: Tugas berjalan lebih dari {HTTP_TIMEOUT} detik."
         }
 
@@ -211,8 +217,8 @@ async def execute_task(client: httpx.AsyncClient, task: Task, vm: VM, vm_port: s
         exec_time = time.time() - start_time
         print(f"Error KONEKSI pada {task_name} di {vm_name}: {e}")
         return {
-            "task_id": task_id, "task_name": task_name, "vm_name": vm_name, "vm_ip": vm.ip,
-            "status": "connect_error", "execution_time": exec_time, "worker_time": None,
+            "task_id": task_id, "index": task.index, "task_name": task_name, "vm_name": vm_name, "vm_ip": vm.ip,
+            "status": "connect_error", "execution_time": exec_time, "worker_time": 0.0,
             "message": str(e)
         }
 
@@ -221,8 +227,8 @@ async def execute_task(client: httpx.AsyncClient, task: Task, vm: VM, vm_port: s
         exec_time = time.time() - start_time
         print(f"Error LAINNYA pada {task_name} di {vm_name}: {e}")
         return {
-            "task_id": task_id, "task_name": task_name, "vm_name": vm_name, "vm_ip": vm.ip,
-            "status": "error", "execution_time": exec_time, "worker_time": None,
+            "task_id": task_id, "index": task.index, "task_name": task_name, "vm_name": vm_name, "vm_ip": vm.ip,
+            "status": "error", "execution_time": exec_time, "worker_time": 0.0,
             "message": str(e)
         }
 
@@ -256,7 +262,7 @@ async def main():
     best_assignment = particle_swarm_optimization(
         tasks, 
         vms, 
-        max_iterations=SHC_ITERATIONS,
+        max_iterations=PSO_ITERATIONS,
         num_particles=30  # Jumlah particle dalam PSO
     )
     
@@ -281,7 +287,6 @@ async def main():
     # Eksekusi seluruh task secara paralel menggunakan asyncio
     # ========================================================
     print(f"\nMemulai eksekusi {len(tasks_to_run)} tugas secara paralel...")
-    simulation_start_time = time.time()
     
     async with httpx.AsyncClient() as client:
         # Siapkan coroutine semua task
@@ -291,57 +296,126 @@ async def main():
         ]
 
         # Jalankan semuanya secara paralel
+        # results menampung semua return value dari execute_task
         results = await asyncio.gather(*task_coroutines)
         
-    simulation_end_time = time.time()
-    makespan = simulation_end_time - simulation_start_time
-    print(f"\nSemua eksekusi tugas selesai dalam {makespan:.4f} detik.")
     
     # ========================================================
-    # Analisis & Penyimpanan hasil
+    # PEMBAHARUAN: Post-Processing Data & Laporan (Sesuai Revisi)
     # ========================================================
-    df = pd.DataFrame(results)
-
-    # Simpan hasil raw ke CSV
-    df.to_csv(RESULTS_FILE, index=False)
-    print(f"Data hasil eksekusi disimpan ke {RESULTS_FILE}")
-
-    # Filter task yang sukses
-    successful_tasks = df[df['status'] == 'success']
-    if successful_tasks.empty:
-        print("Tidak ada tugas yang berhasil diselesaikan. Metrik tidak dapat dihitung.")
+    
+    # 1. Filter tugas sukses
+    successful_results = [r for r in results if r['status'] == 'success']
+    
+    if not successful_results:
+        print("\nTidak ada tugas yang berhasil. Program berhenti.")
         return
 
-    # Hitung metrik performa
-    avg_turnaround = successful_tasks['execution_time'].mean()
-    avg_worker_time = successful_tasks['worker_time'].mean()
-    num_success = len(successful_tasks)
-    num_failed = len(df) - num_success
+    # 2. Urutkan berdasarkan Index Tugas agar urutan tampilannya logis
+    #    Ini juga membantu simulasi antrean jika kita asumsikan index kecil masuk duluan
+    sorted_results = sorted(successful_results, key=lambda x: x['index'])
 
-    print("\n--- Ringkasan Metrik ---")
-    print(f"Total Makespan (Waktu Eksekusi Total): {makespan:.4f} detik")
-    print(f"Average Turnaround Time (Scheduler):   {avg_turnaround:.4f} detik")
-    print(f"Average Execution Time (Worker):     {avg_worker_time:.4f} detik")
-    print(f"Tugas Berhasil: {num_success}")
-    print(f"Tugas Gagal:    {num_failed}")
+    # 3. Hitung Logika Antrean (Batch Processing Simulation)
+    #    Kita mensimulasikan seolah-olah tugas di VM yang sama antre satu per satu
     
-    # Buat summary ke file .txt
-    summary_file = RESULTS_FILE.replace(".csv", "_summary.txt")
+    # Dictionary untuk menyimpan kapan VM bebas (finish time terakhir)
+    vm_finish_times = {vm.name: 0.0 for vm in vms} 
+    final_data = []
+
+    for item in sorted_results:
+        vm = item['vm_name']
+        
+        # Gunakan 'worker_time' karena itu waktu proses real di CPU
+        exec_time = item['worker_time'] 
+        
+        # Start Time adalah kapan VM selesai mengerjakan tugas sebelumnya
+        # (atau 0.0 jika ini tugas pertama di VM tersebut)
+        start_time = vm_finish_times[vm]
+        
+        # Wait Time = Start Time - Arrival Time
+        # Kita asumsikan semua tasks ready di t=0 (Static Scheduling), jadi wait = start
+        wait_time = start_time
+        
+        # Finish Time = Start + Execution
+        finish_time = start_time + exec_time
+        
+        # Update waktu VM ini sibuk sampai kapan
+        vm_finish_times[vm] = finish_time
+        
+        final_data.append({
+            'index': item['index'],
+            'task_name': item['task_name'],
+            'vm_assigned': vm,
+            'start_time': start_time,
+            'exec_time': exec_time,
+            'finish_time': finish_time,
+            'wait_time': wait_time
+        })
+
+    # 4. Perhitungan Metrik Global (Sesuai Gambar Dosen)
+    total_tasks = len(final_data)
     
-    with open(summary_file, 'w') as f:
-        f.write("--- Ringkasan Hasil Simulasi ---\n")
-        f.write(f"Algorithm: Particle Swarm Optimization (PSO)\n")
-        f.write(f"Algorithm Runtime: {algo_time:.4f} detik\n")
-        f.write(f"Total Makespan: {makespan:.4f} detik\n")
-        f.write(f"Average Turnaround Time (Scheduler): {avg_turnaround:.4f} detik\n")
-        f.write(f"Average Execution Time (Worker): {avg_worker_time:.4f} detik\n")
-        f.write(f"Tugas Berhasil: {num_success}\n")
-        f.write(f"Tugas Gagal: {num_failed}\n")
-        f.write(f"Total Tugas: {len(df)}\n")
-        f.write(f"Dataset: {TASK_FILE}\n")
-        f.write(f"Iterations: {SHC_ITERATIONS}\n")
+    # Makespan = Waktu ketika tugas PALING TERAKHIR selesai di seluruh sistem
+    makespan = max(t['finish_time'] for t in final_data) if final_data else 0
     
-    print(f"Ringkasan metrik disimpan ke {summary_file}")
+    # Throughput = Jumlah tugas / Makespan
+    throughput = total_tasks / makespan if makespan > 0 else 0
+    
+    total_cpu_time = sum(t['exec_time'] for t in final_data)
+    total_wait_time = sum(t['wait_time'] for t in final_data)
+    
+    avg_start_time = sum(t['start_time'] for t in final_data) / total_tasks
+    avg_exec_time = total_cpu_time / total_tasks
+    avg_finish_time = sum(t['finish_time'] for t in final_data) / total_tasks
+    
+    # Hitung Imbalance Degree
+    # Rumus: (Max_Load - Min_Load) / Avg_Load
+    # Load adalah total waktu aktif tiap VM
+    final_vm_loads = list(vm_finish_times.values())
+    max_load = max(final_vm_loads)
+    min_load = min(final_vm_loads)
+    avg_load = sum(final_vm_loads) / len(final_vm_loads) if final_vm_loads else 0
+    imbalance_degree = (max_load - min_load) / avg_load if avg_load > 0 else 0
+
+    # Hitung Resource Utilization
+    # Rumus: Total_CPU_Time / (Makespan * Jumlah_VM)
+    num_vms = len(vms)
+    resource_utilization = (total_cpu_time / (makespan * num_vms)) * 100 if makespan > 0 else 0
+
+    # 5. Tampilkan Output ke Konsol (Format Revisi)
+    print(f"\nSemua eksekusi tugas selesai dalam {makespan:.4f} detik.")
+    print(f"Data hasil eksekusi disimpan ke {RESULTS_FILE}\n")
+    
+    print("--- Hasil ---")
+    print(f"{'Total Tugas Selesai':<25} : {total_tasks}")
+    print(f"{'Makespan (Waktu Total)':<25} : {makespan:.4f} detik")
+    print(f"{'Throughput':<25} : {throughput:.4f} tugas/detik")
+    print(f"{'Total CPU Time':<25} : {total_cpu_time:.4f} detik")
+    print(f"{'Total Wait Time':<25} : {total_wait_time:.4f} detik")
+    print(f"{'Average Start Time (rel)':<25} : {avg_start_time:.4f} detik")
+    print(f"{'Average Execution Time':<25} : {avg_exec_time:.4f} detik")
+    print(f"{'Average Finish Time (rel)':<25} : {avg_finish_time:.4f} detik")
+    print(f"{'Imbalance Degree':<25} : {imbalance_degree:.4f}")
+    print(f"{'Resource Utilization (CPU)':<25} : {resource_utilization:.4f}%")
+    
+    # 6. Simpan ke CSV (Format Revisi: index, task_name, vm_assigned, start, exec, finish, wait)
+    #    Kita menggunakan module csv agar urutan kolom terkontrol rapi
+    fieldnames = ['index', 'task_name', 'vm_assigned', 'start_time', 'exec_time', 'finish_time', 'wait_time']
+    
+    try:
+        with open(RESULTS_FILE, mode='w', newline='') as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            
+            # Tulis header: index, task_name , vm_assigned, ... (spasi disesuaikan biar mirip gambar kalau perlu, tapi standar csv cukup nama field)
+            # Di sini kita pakai nama field standar
+            writer.writeheader()
+            
+            for data in final_data:
+                writer.writerow(data)
+                
+        print(f"File CSV berhasil diperbarui: {RESULTS_FILE}")
+    except Exception as e:
+        print(f"Gagal menyimpan CSV: {e}")
 
 
 if __name__ == "__main__":
