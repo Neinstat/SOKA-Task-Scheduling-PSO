@@ -134,7 +134,7 @@ Jalankan perintah berikut di terminal:
 
 ---
 
-## 📊 Output Hasil
+## Output Hasil
 
 Setelah program selesai berjalan, akan muncul dua file output di folder proyek dengan penamaan otomatis sesuai algoritma dan dataset:
 
@@ -165,15 +165,13 @@ Resource Utilization      : 88.9955%
 
 ---
 
-## 🏗️ Struktur Proyek
+## Struktur Proyek
 
 *   `pso_scheduler.py` & `pso_algorithm.py` : Implementasi PSO.
 *   `shc_scheduler.py` & `shc_algorithm.py` : Implementasi SHC.
 *   `rr_scheduler.py` & `rr_algorithm.py` : Implementasi Round Robin.
 *   `fcfs_scheduler.py` & `fcfs_algorithm.py` : Implementasi FCFS.
-*   `dataset_*.txt` : File input tugas.
+*   `dataset_*.txt` : File dataset tugas.
 *   `.env` : Konfigurasi environment (IP VM).
 
 ---
-
-&copy; 2024 Kelompok I SOKA B - ITS
