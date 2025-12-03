@@ -4,7 +4,7 @@ Repository ini berisi implementasi simulasi **Task Scheduling** pada lingkungan 
 
 Program ini mensimulasikan distribusi tugas (tasks) ke beberapa Virtual Machine (VM) menggunakan berbagai algoritma penjadwalan untuk membandingkan performa metrik seperti **Makespan**, **Throughput**, **Imbalance Degree**, dan **Resource Utilization**.
 
-## 👥 Anggota Kelompok
+## Anggota Kelompok
 
 **Kelompok I — Kelas SOKA B**
 
