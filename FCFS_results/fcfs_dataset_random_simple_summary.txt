@@ -1,0 +1,11 @@
+--- Hasil Algoritma: FCFS ---
+Dataset                   : dataset_random_simple.txt
+Total Tugas Selesai       : 49
+Makespan                  : 53.7683 detik
+Throughput                : 0.9113 tugas/detik
+Total CPU Time            : 183.8951 detik
+Total Wait Time           : 568.3984 detik
+Average Exec Time         : 3.7530 detik
+Imbalance Degree          : 0.6094
+Resource Utilization      : 85.5035%
+----------------------------------------

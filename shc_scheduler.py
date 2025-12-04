@@ -20,7 +20,7 @@ load_dotenv()
 # 2. dataset_random_stratified.txt
 # 3. dataset_low_high.txt
 # ==============================================================================
-TASK_FILE = "dataset_low_high.txt"
+TASK_FILE = "dataset_random_simple.txt"
 # ==============================================================================
 
 # --- REVISI MINOR: Penamaan Output Dinamis ---

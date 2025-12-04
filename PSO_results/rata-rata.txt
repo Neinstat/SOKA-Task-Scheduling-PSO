@@ -1,0 +1,5 @@
+Rata Rata Percobaan 1-10	
+start_time  :   300E+15
+exec_time   :   1.058.924
+finish_time :   3.249.656.853.204.240     
+wait_time   :   300E+15

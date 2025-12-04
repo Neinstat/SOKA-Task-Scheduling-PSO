@@ -12,11 +12,9 @@ Program ini mensimulasikan distribusi tugas (tasks) ke beberapa Virtual Machine 
 |----|------|-----|
 | 1. | Muhammad Andrean Rizq P | 5027231052 |
 | 2. | Fikri Aulia As Sa'adi | 5027231026 |
-| 3. | Malvin Putra | ...069 |
-| 4. | Fadhil Saifullah | ...069 |
-| 5. | Dani Wahyu Anak Ary | ...069 |
-
-*(Catatan: Silakan sesuaikan NRP jika ada kesalahan penulisan)*
+| 3. | Malvin Putra | 5027231048 |
+| 4. | Fadhil Saifullah | 5027231068 |
+| 5. | Dani Wahyu Anak Ary | 5027231038 |
 
 ---
 
