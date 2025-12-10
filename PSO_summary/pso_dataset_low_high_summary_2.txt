@@ -1,0 +1,14 @@
+--- Hasil ---
+Algoritma                 : Particle Swarm Optimization (PSO)
+Dataset                   : dataset_low_high.txt
+Total Tugas Selesai       : 29
+Makespan (Waktu Total)    : 56.8622 detik
+Throughput                : 0.5100 tugas/detik
+Total CPU Time            : 152.4997 detik
+Total Wait Time           : 341.7037 detik
+Average Start Time (rel)  : 11.7829 detik
+Average Execution Time    : 5.2586 detik
+Average Finish Time (rel) : 17.0415 detik
+Imbalance Degree          : 1.4915
+Resource Utilization (CPU): 67.0479%
+----------------------------------------

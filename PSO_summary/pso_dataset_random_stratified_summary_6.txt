@@ -1,0 +1,14 @@
+--- Hasil ---
+Algoritma                 : Particle Swarm Optimization (PSO)
+Dataset                   : dataset_random_stratified.txt
+Total Tugas Selesai       : 250
+Makespan (Waktu Total)    : 40.7286 detik
+Throughput                : 6.1382 tugas/detik
+Total CPU Time            : 144.1199 detik
+Total Wait Time           : 1624.4634 detik
+Average Start Time (rel)  : 6.4979 detik
+Average Execution Time    : 0.5765 detik
+Average Finish Time (rel) : 7.0743 detik
+Imbalance Degree          : 0.2971
+Resource Utilization (CPU): 88.4636%
+----------------------------------------

@@ -1,0 +1,14 @@
+--- Hasil ---
+Algoritma                 : Round Robin (RR)
+Dataset                   : dataset_random_simple.txt
+Total Tugas Selesai       : 48
+Makespan (Waktu Total)    : 140.9764 detik
+Throughput                : 0.3405 tugas/detik
+Total CPU Time            : 309.7662 detik
+Total Wait Time           : 859.0613 detik
+Average Start Time (rel)  : 17.8971 detik
+Average Execution Time    : 6.4535 detik
+Average Finish Time (rel) : 24.3506 detik
+Imbalance Degree          : 1.4880
+Resource Utilization (CPU): 54.9323%
+----------------------------------------

@@ -7,14 +7,14 @@ import csv
 from dotenv import load_dotenv
 from collections import namedtuple
 
-# --- IMPORT ALGORITMA RR ---
+# --- IMPORT ALGORITMA RR MURNI ---
 from rr_algorithm import round_robin_scheduling
 
 # --- KONFIGURASI ---
 load_dotenv()
 
 # ==============================================================================
-# GANTI DATASET DI SINI:
+# GANTI DATASET DI SINI (CONTOH: dataset_random_simple.txt)
 # 1. dataset_random_simple.txt
 # 2. dataset_random_stratified.txt
 # 3. dataset_low_high.txt
@@ -22,12 +22,15 @@ load_dotenv()
 TASK_FILE = "dataset_random_simple.txt"
 # ==============================================================================
 
-# Nama File Output Dinamis
 dataset_name = os.path.splitext(TASK_FILE)[0]
 RESULTS_FILE = f"rr_{dataset_name}.csv"
 SUMMARY_FILE = f"rr_{dataset_name}_summary.txt"
 
-HTTP_TIMEOUT = 120.0
+# Timeout 5 Menit (Cukup untuk menampung antrean di VM1)
+HTTP_TIMEOUT = 300.0 
+
+# Retry 2 kali (Agar VM1 yang sering error 500 punya kesempatan pulih)
+MAX_RETRIES = 2
 
 VM = namedtuple('VM', ['name', 'ip', 'cpu_cores', 'ram_gb'])
 Task = namedtuple('Task', ['id', 'name', 'index', 'cpu_load'])
@@ -82,18 +85,45 @@ def load_tasks(task_file):
         print(f"Error: {e}")
         exit(1)
 
-async def execute_task(client, task, vm, vm_port):
-    url = f"http://{vm.ip}:{vm_port}/task/{task.index}"
-    print(f"Mengeksekusi {task.name} (idx: {task.id}) di {vm.name}...")
-    try:
-        response = await client.get(url, timeout=HTTP_TIMEOUT)
-        response.raise_for_status()
-        data = response.json()
-        w_time = float(str(data.get('execution_time', '0.0')).replace('s',''))
-        return {"index": task.index, "task_name": task.name, "vm_assigned": vm.name, "status": "success", "worker_time": w_time}
-    except Exception as e:
-        print(f"Error {task.name}: {e}")
-        return {"index": task.index, "task_name": task.name, "vm_assigned": vm.name, "status": "failed", "worker_time": 0.0}
+# Fungsi Execute: SMART SEMAPHORE + ROBUST RETRY
+async def execute_task_smart(semaphores, client, task, vm, vm_port):
+    # Ambil semaphore khusus untuk VM ini
+    my_semaphore = semaphores[vm.name]
+    
+    async with my_semaphore:
+        url = f"http://{vm.ip}:{vm_port}/task/{task.index}"
+        
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                if attempt == 1:
+                    print(f"Mengeksekusi {task.name} (idx: {task.id}) di {vm.name}...")
+                else:
+                    print(f"   [RETRY {attempt}/{MAX_RETRIES}] Mengulang {task.name} di {vm.name}...")
+
+                response = await client.get(url, timeout=HTTP_TIMEOUT)
+                response.raise_for_status()
+                data = response.json()
+                w_time = float(str(data.get('execution_time', '0.0')).replace('s',''))
+                
+                return {
+                    "index": task.index, "task_name": task.name, "vm_assigned": vm.name, 
+                    "status": "success", "worker_time": w_time
+                }
+            
+            except Exception as e:
+                # Log error tapi jangan panik
+                print(f"   [FAIL attempt {attempt}] {task.name} di {vm.name}: {e}")
+                
+                if attempt < MAX_RETRIES:
+                    # Backoff: 2s, 4s, 8s, 16s...
+                    sleep_time = 2 ** attempt 
+                    # print(f"   [WAIT] Menunggu {sleep_time} detik...") # Optional: Un-comment kalau mau lihat log wait
+                    await asyncio.sleep(sleep_time)
+                else:
+                    return {
+                        "index": task.index, "task_name": task.name, "vm_assigned": vm.name, 
+                        "status": "failed", "worker_time": 0.0
+                    }
 
 async def main():
     vms = load_vms()
@@ -105,13 +135,12 @@ async def main():
     print("\n--- Menjalankan Algoritma: Round Robin (RR) ---")
     start_algo = time.time()
     
-    # PANGGIL ALGORITMA RR
+    # 1. Jalankan Algoritma Pembagian Tugas (RR Murni)
     best_assignment = round_robin_scheduling(tasks, vms)
     
     algo_time = time.time() - start_algo
     print(f"Algoritma RR selesai dalam {algo_time:.4f} detik.")
 
-    print("\nPenugasan Tugas:")
     vm_map = {vm.name: vm for vm in vms}
     tasks_to_run = []
     
@@ -124,8 +153,19 @@ async def main():
 
     print(f"\nMemulai eksekusi {len(tasks_to_run)} tugas...")
     
-    async with httpx.AsyncClient() as client:
-        coroutines = [execute_task(client, t, v, vm_port) for t, v in tasks_to_run]
+    # 2. Setup Smart Semaphore (PENTING!)
+    # VM1 (1 Core) hanya terima 1 tugas dalam satu waktu.
+    # VM4 (8 Core) bisa terima 8 tugas sekaligus.
+    semaphores = {vm.name: asyncio.Semaphore(vm.cpu_cores) for vm in vms}
+    
+    # 3. Setup Client dengan limit koneksi tinggi (agar VM4 tidak terhambat)
+    limits = httpx.Limits(max_keepalive_connections=20, max_connections=100)
+    
+    async with httpx.AsyncClient(limits=limits) as client:
+        coroutines = [
+            execute_task_smart(semaphores, client, t, v, vm_port) 
+            for t, v in tasks_to_run
+        ]
         results = await asyncio.gather(*coroutines)
 
     # --- POST PROCESSING ---
@@ -146,44 +186,68 @@ async def main():
             'finish_time': start_time + exec_time, 'wait_time': start_time
         })
 
-    if not final_data: return
+    if not final_data:
+        print("Semua tugas gagal.")
+        return
 
+    # --- PERHITUNGAN METRIK ---
     total_tasks = len(final_data)
     makespan = max(t['finish_time'] for t in final_data)
     throughput = total_tasks / makespan if makespan > 0 else 0
+    
     total_cpu = sum(t['exec_time'] for t in final_data)
     total_wait = sum(t['wait_time'] for t in final_data)
+    
+    avg_start = sum(t['start_time'] for t in final_data) / total_tasks
     avg_exec = total_cpu / total_tasks
+    avg_finish = sum(t['finish_time'] for t in final_data) / total_tasks
     
     loads = list(vm_finish_times.values())
     avg_load = sum(loads) / len(loads)
     imbalance = (max(loads) - min(loads)) / avg_load if avg_load > 0 else 0
     utilization = (total_cpu / (makespan * len(vms))) * 100 if makespan > 0 else 0
 
+    # --- OUTPUT ---
     with open(RESULTS_FILE, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=['index', 'task_name', 'vm_assigned', 'start_time', 'exec_time', 'finish_time', 'wait_time'])
         writer.writeheader()
         writer.writerows(final_data)
 
-    output_text = (
-        f"--- Hasil Algoritma: Round Robin (RR) ---\n"
+    print(f"\nSemua eksekusi tugas selesai dalam {makespan:.4f} detik.")
+    print(f"Data hasil eksekusi disimpan ke {RESULTS_FILE}\n")
+    
+    print("--- Hasil ---")
+    print(f"{'Total Tugas Selesai':<25} : {total_tasks}")
+    print(f"{'Makespan (Waktu Total)':<25} : {makespan:.4f} detik")
+    print(f"{'Throughput':<25} : {throughput:.4f} tugas/detik")
+    print(f"{'Total CPU Time':<25} : {total_cpu:.4f} detik")
+    print(f"{'Total Wait Time':<25} : {total_wait:.4f} detik")
+    print(f"{'Average Start Time (rel)':<25} : {avg_start:.4f} detik")
+    print(f"{'Average Execution Time':<25} : {avg_exec:.4f} detik")
+    print(f"{'Average Finish Time (rel)':<25} : {avg_finish:.4f} detik")
+    print(f"{'Imbalance Degree':<25} : {imbalance:.4f}")
+    print(f"{'Resource Utilization (CPU)':<25} : {utilization:.4f}%")
+    print("-" * 40)
+    
+    summary_text = (
+        f"--- Hasil ---\n"
+        f"Algoritma                 : Round Robin (RR)\n"
         f"Dataset                   : {TASK_FILE}\n"
         f"Total Tugas Selesai       : {total_tasks}\n"
-        f"Makespan                  : {makespan:.4f} detik\n"
+        f"Makespan (Waktu Total)    : {makespan:.4f} detik\n"
         f"Throughput                : {throughput:.4f} tugas/detik\n"
         f"Total CPU Time            : {total_cpu:.4f} detik\n"
         f"Total Wait Time           : {total_wait:.4f} detik\n"
-        f"Average Exec Time         : {avg_exec:.4f} detik\n"
+        f"Average Start Time (rel)  : {avg_start:.4f} detik\n"
+        f"Average Execution Time    : {avg_exec:.4f} detik\n"
+        f"Average Finish Time (rel) : {avg_finish:.4f} detik\n"
         f"Imbalance Degree          : {imbalance:.4f}\n"
-        f"Resource Utilization      : {utilization:.4f}%\n"
+        f"Resource Utilization (CPU): {utilization:.4f}%\n"
         f"----------------------------------------"
     )
 
-    print(f"\nSemua eksekusi tugas selesai dalam {makespan:.4f} detik.")
-    print(output_text)
-    
     with open(SUMMARY_FILE, 'w') as f:
-        f.write(output_text)
+        f.write(summary_text)
     print(f"\nRingkasan disimpan ke {SUMMARY_FILE}")
 
 if __name__ == "__main__":
