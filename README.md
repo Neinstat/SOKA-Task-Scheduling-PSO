@@ -147,19 +147,7 @@ Setelah program selesai berjalan, akan muncul dua file output di folder proyek d
         *   Resource Utilization
 
 ### Contoh Output Summary
-```text
---- Hasil Algoritma: SHC ---
-Dataset                   : dataset_random_simple.txt
-Total Tugas Selesai       : 50
-Makespan                  : 65.6361 detik
-Throughput                : 0.7618 tugas/detik
-Total CPU Time            : 233.6527 detik
-Total Wait Time           : 772.9520 detik
-Average Exec Time         : 4.6731 detik
-Imbalance Degree          : 0.3780
-Resource Utilization      : 88.9955%
-----------------------------------------
-```
+![alt text](images/image.png)
 
 ---
 
