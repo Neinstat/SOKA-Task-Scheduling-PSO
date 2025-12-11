@@ -1,14 +1,14 @@
 --- Hasil ---
 Algoritma                 : Stochastic Hill Climbing (SHC)
 Dataset                   : dataset_random_stratified.txt
-Total Tugas Selesai       : 241
-Makespan (Waktu Total)    : 137.6913 detik
-Throughput                : 1.7503 tugas/detik
-Total CPU Time            : 291.4787 detik
-Total Wait Time           : 2646.7689 detik
-Average Start Time (rel)  : 10.9824 detik
-Average Execution Time    : 1.2095 detik
-Average Finish Time (rel) : 12.1919 detik
-Imbalance Degree          : 1.7106
-Resource Utilization (CPU): 52.9225%
+Total Tugas Selesai       : 249
+Makespan (Waktu Total)    : 93.4734 detik
+Throughput                : 2.6639 tugas/detik
+Total CPU Time            : 238.5420 detik
+Total Wait Time           : 2211.5641 detik
+Average Start Time (rel)  : 8.8818 detik
+Average Execution Time    : 0.9580 detik
+Average Finish Time (rel) : 9.8398 detik
+Imbalance Degree          : 1.3450
+Resource Utilization (CPU): 63.7994%
 ----------------------------------------

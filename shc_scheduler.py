@@ -19,7 +19,7 @@ load_dotenv()
 # 2. dataset_random_stratified.txt
 # 3. dataset_low_high.txt
 # ==============================================================================
-TASK_FILE = "dataset_random_stratified.txt"
+TASK_FILE = "dataset_low_high.txt"
 # ==============================================================================
 
 dataset_name = os.path.splitext(TASK_FILE)[0]
